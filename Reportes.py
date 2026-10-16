@@ -211,23 +211,25 @@ if check_password():
                 st.dataframe(df_final.head(5))
 
                 # --- CONFIGURACIÓN DEL EXCEL DE SALIDA ---
+                # 1. Definimos los títulos superiores (14 en total)
                 nivel_superior = [
+                    "DATOS GENERALES", 
                     "DATOS GENERALES", "DATOS GENERALES", 
                     "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",
                     "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  
                     "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", 
                     "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" 
                 ]
-                nivel_inferior = df_final.columns.tolist() 
-                df_final.columns = pd.MultiIndex.from_arrays([nivel_superior, nivel_inferior])
-
+                
                 output_final = BytesIO()
                 with pd.ExcelWriter(output_final, engine='openpyxl') as writer:
-                    df_final.to_excel(writer, index=False, sheet_name='Reporte_Completado', startrow=2)
+                    # 2. Guardamos el DataFrame normal empezando en la fila 4 de Excel (startrow=3)
+                    df_final.to_excel(writer, index=False, sheet_name='Reporte_Completado', startrow=3)
                     
                     workbook = writer.book
                     worksheet = writer.sheets['Reporte_Completado']
                     
+                    # 3. Formato del Título Principal (Fila 1)
                     worksheet['A1'] = "REPORTE DE COMPONENTES ROTABLES"
                     worksheet['A1'].font = Font(size=16, bold=True, color="FFFFFF")
                     worksheet['A1'].alignment = Alignment(horizontal="center", vertical="center")
@@ -236,8 +238,18 @@ if check_password():
                     ultima_col_letra = get_column_letter(len(df_final.columns))
                     worksheet.merge_cells(f'A1:{ultima_col_letra}1')
                     
-                    ultima_fila = len(df_final) + 3 
-                    rango_tabla = f"A3:{ultima_col_letra}{ultima_fila}"
+                    # 4. Inyectar los agrupadores (Fila 3) usando openpyxl para evitar el error de Pandas
+                    for col_num, valor in enumerate(nivel_superior, 1):
+                        celda = worksheet.cell(row=3, column=col_num)
+                        celda.value = valor
+                        celda.font = Font(bold=True)
+                        celda.alignment = Alignment(horizontal="center", vertical="center")
+                        # Fondo gris claro para que resalte
+                        celda.fill = openpyxl.styles.PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+                    
+                    # 5. Crear la tabla oficial (Desde la Fila 4 hacia abajo)
+                    ultima_fila = len(df_final) + 4 
+                    rango_tabla = f"A4:{ultima_col_letra}{ultima_fila}"
                     
                     tabla = Table(displayName="TablaRotables", ref=rango_tabla)
                     estilo = TableStyleInfo(
@@ -250,12 +262,12 @@ if check_password():
                     tabla.tableStyleInfo = estilo
                     worksheet.add_table(tabla)
                     
-                    # Autoajuste de columnas seguro (ignorando la fila 1 para evitar error de MergedCell)
+                    # 6. Autoajuste de columnas (revisando desde la fila 3)
                     for col_idx in range(1, worksheet.max_column + 1):
                         column_letter = get_column_letter(col_idx)
                         max_length = 0
                         
-                        for row_idx in range(2, worksheet.max_row + 1):
+                        for row_idx in range(3, worksheet.max_row + 1):
                             cell = worksheet.cell(row=row_idx, column=col_idx)
                             try:
                                 if cell.value:
