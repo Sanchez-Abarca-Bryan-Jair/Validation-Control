@@ -154,6 +154,7 @@ if check_password():
             file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx"])
         with col2:
             file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx"])
+        st.markdown("---")
 
         if file_plantilla and file_descargado:
             st.info("Procesando cruce de datos...")
@@ -208,6 +209,7 @@ if check_password():
                         st.dataframe(filas_sin_match)
                     else:
                         st.success("¡Cruce realizado con éxito!")
+                    st.markdown("---")
                         
 
                     # Truco visual para el Excel de salida (espacio final)
