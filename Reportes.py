@@ -208,7 +208,7 @@ if check_password():
                     })
 
                     st.success("¡Cruce realizado con éxito!")
-                    st.dataframe(df_final.head(5))
+                    st.dataframe(df_final)
 
 
 
