@@ -201,6 +201,15 @@ if check_password():
                     df_final = df_final.replace(['nan', 'NaN', '#REF!', 'None', 'NaT'], '')
                     df_final = df_final.fillna('')
 
+                    # Sistema de alertas
+                    filas_sin_match = df_finla[df_final["DESCRIPCIÓN"] == ""]
+                    if not filas_sin_match.empty:
+                        st.warning(f"No se encontro coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa si hay errores de captura")
+                        st.dataframe(filas_sin_match)
+                    else:
+                        st.success("¡Cruce realizado con éxito!")
+                        
+
                     # Truco visual para el Excel de salida (espacio final)
                     df_final = df_final.rename(columns={
                         "NUMERO DE PARTE2": "NUMERO DE PARTE ", 
@@ -208,6 +217,7 @@ if check_password():
                     })
 
                     st.success("¡Cruce realizado con éxito!")
+                    st.markdown("### Tabla Completa")
                     st.dataframe(df_final)
 
 
