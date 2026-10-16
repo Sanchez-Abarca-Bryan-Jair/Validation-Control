@@ -16,29 +16,26 @@ st.set_page_config(page_title="Gestión de Rotables", layout="wide", page_icon="
 # SISTEMA DE AUTENTICACIÓN GLOBAL
 # ==========================================
 def check_password():
-    # Si la variable no existe, la creamos como falsa
     if "password_correct" not in st.session_state:
         st.session_state["password_correct"] = False
 
-    # Si no es correcta, mostramos solo el cuadro de contraseña y detenemos la ejecución
     if not st.session_state["password_correct"]:
         st.title("Acceso al Sistema")
         st.write("Por favor, ingresa la contraseña para continuar.")
         pwd = st.text_input("Contraseña:", type="password")
         
-        if pwd == st.secrets["password"]: # Cambia "Volaris2026" por la contraseña que desees
+        if pwd == st.secrets.get("admin_password", ""):
             st.session_state["password_correct"] = True
-            st.rerun() # Recarga la página para mostrar el sistema
+            st.rerun()
         elif pwd != "":
             st.error("Contraseña incorrecta.")
         return False
     return True
 
 # ==========================================
-# APLICACIÓN PRINCIPAL (SOLO SI HAY ACCESO)
+# APLICACIÓN PRINCIPAL
 # ==========================================
 if check_password():
-    
     banner_html = """
     <style>
         .hero-banner {
@@ -75,37 +72,30 @@ if check_password():
     """
 
     st.markdown(banner_html, unsafe_allow_html=True)
-
-    # Crear dos pestañas para separar los procesos
+    
     tab1, tab2 = st.tabs(["Captura de Datos", "Cruce de Información"])
 
     # --- PESTAÑA 1: CAPTURA DE DATOS ---
     with tab1:
         st.header("Captura de Reporte Manual")
-        st.info("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
+        st.markdown("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
 
         columnas_plantilla = [
-            "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
+            "No.", "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
             "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
             "N°TO", "RO/EX", "REGIMEN", "OBSERVACIONES"
         ]
         
         if "df_input" not in st.session_state:
             df_vacio = pd.DataFrame(columns=columnas_plantilla)
-            
             for i in range(5):
-                df_vacio.loc[i] = [None] + [""] * 12
-                
+                df_vacio.loc[i] = [None] * 14
+            
             df_vacio["FECHA"] = pd.to_datetime(df_vacio["FECHA"])
             
-            columnas_texto = [
-                "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
-                "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
-                "N°TO", "RO/EX", "REGIMEN", "OBSERVACIONES"
-            ]
-            
-            for col in columnas_texto:
-                df_vacio[col] = df_vacio[col].astype(str)
+            for col in columnas_plantilla:
+                if col != "FECHA":
+                    df_vacio[col] = df_vacio[col].astype(str)
 
             st.session_state["df_input"] = df_vacio
 
@@ -142,18 +132,15 @@ if check_password():
     # --- PESTAÑA 2: CRUCE DE INFORMACIÓN ---
     with tab2:
         st.header("Cruce de Información")
-        st.info("Sube el reporte manual capturado y el archivo en crudo descargado del sistema.")
-        # --- TRUCO CSS PARA PINTAR LOS CUADROS DE SUBIDA ---
+        st.markdown("Sube el reporte manual capturado y el archivo en crudo descargado del sistema.")
+        
         st.markdown("""
             <style>
-            /* Pintar el primer cuadro (Columna 1) - Tono Azul Oscuro */
             [data-testid="column"]:nth-of-type(1) div[data-testid="stFileUploadDropzone"] {
                 background-color: #072a40 !important;
                 border: 2px dashed #17a2b8 !important;
                 border-radius: 10px !important;
             }
-            
-            /* Pintar el segundo cuadro (Columna 2) - Tono Verde Oscuro */
             [data-testid="column"]:nth-of-type(2) div[data-testid="stFileUploadDropzone"] {
                 background-color: #053015 !important;
                 border: 2px dashed #28a745 !important;
@@ -161,9 +148,10 @@ if check_password():
             }
             </style>
         """, unsafe_allow_html=True)
+        
         col1, col2 = st.columns(2)
         with col1:
-            file_plantilla = st.file_uploader("1. Sube el Reporte Manual (Generado al momento de registrar la informacion en esta app)", type=["xlsx"])
+            file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx"])
         with col2:
             file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx"])
 
@@ -176,117 +164,123 @@ if check_password():
                 df_plantilla.columns = df_plantilla.columns.str.strip()
                 df_descargado.columns = df_descargado.columns.str.strip()
 
-                df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
-                df_descargado["SN"] = df_descargado["SN"].astype(str).str.strip()
+                # Compatibilidad con archivos históricos
+                df_plantilla = df_plantilla.rename(columns={
+                    "NUMERO DE PARTE.1": "NUMERO DE PARTE2",
+                    "NUMERO DE SERIE.1": "NUMERO DE SERIE3"
+                })
 
-                df_cruce = pd.merge(
-                    df_plantilla,
-                    df_descargado,
-                    left_on="NUMERO DE SERIE3",
-                    right_on="SN",
-                    how="left"
-                )
+                if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
+                    df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
+                    df_descargado["SN"] = df_descargado["SN"].astype(str).str.strip()
 
-                if "PN_DESCRIP" in df_cruce.columns and "DESCRIPCIÓN" in df_cruce.columns:
-                    df_cruce["DESCRIPCIÓN"] = np.where(
-                        df_cruce["PN_DESCRIP"].notna() & (df_cruce["PN_DESCRIP"] != "nan") & (df_cruce["PN_DESCRIP"].str.strip() != ""), 
-                        df_cruce["PN_DESCRIP"], 
-                        df_cruce["DESCRIPCIÓN"]
-                    )
-                
-                if "PN" in df_cruce.columns and "NUMERO DE PARTE2" in df_cruce.columns:
-                    df_cruce["NUMERO DE PARTE2"] = np.where(
-                        df_cruce["PN"].notna() & (df_cruce["PN"] != "nan") & (df_cruce["PN"].str.strip() != ""), 
-                        df_cruce["PN"], 
-                        df_cruce["NUMERO DE PARTE2"]
+                    df_cruce = pd.merge(
+                        df_plantilla,
+                        df_descargado,
+                        left_on="NUMERO DE SERIE3",
+                        right_on="SN",
+                        how="left"
                     )
 
-                columnas_originales = df_plantilla.columns.tolist()
-                df_final = df_cruce[columnas_originales]
-                
-                df_final = df_final.replace(['nan', 'NaN', '#REF!', 'None', 'NaT'], '')
-                df_final = df_final.fillna('')
+                    if "PN_DESCRIP" in df_cruce.columns and "DESCRIPCIÓN" in df_cruce.columns:
+                        df_cruce["DESCRIPCIÓN"] = np.where(
+                            df_cruce["PN_DESCRIP"].notna() & (df_cruce["PN_DESCRIP"] != "nan") & (df_cruce["PN_DESCRIP"].str.strip() != ""), 
+                            df_cruce["PN_DESCRIP"], 
+                            df_cruce["DESCRIPCIÓN"]
+                        )
+                    
+                    if "PN" in df_cruce.columns and "NUMERO DE PARTE2" in df_cruce.columns:
+                        df_cruce["NUMERO DE PARTE2"] = np.where(
+                            df_cruce["PN"].notna() & (df_cruce["PN"] != "nan") & (df_cruce["PN"].str.strip() != ""), 
+                            df_cruce["PN"], 
+                            df_cruce["NUMERO DE PARTE2"]
+                        )
 
-                st.success("¡Cruce realizado con éxito!")
-                st.dataframe(df_final.head(5))
+                    columnas_originales = df_plantilla.columns.tolist()
+                    df_final = df_cruce[columnas_originales]
+                    
+                    df_final = df_final.replace(['nan', 'NaN', '#REF!', 'None', 'NaT'], '')
+                    df_final = df_final.fillna('')
 
-                # --- CONFIGURACIÓN DEL EXCEL DE SALIDA ---
-                # 1. Definimos los títulos superiores (14 en total)
-                nivel_superior = [
-                    "DATOS GENERALES", 
-                    "DATOS GENERALES", "DATOS GENERALES", 
-                    "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",
-                    "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  
-                    "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", 
-                    "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" 
-                ]
-                
-                output_final = BytesIO()
-                with pd.ExcelWriter(output_final, engine='openpyxl') as writer:
-                    # 2. Guardamos el DataFrame normal empezando en la fila 4 de Excel (startrow=3)
-                    df_final.to_excel(writer, index=False, sheet_name='Reporte_Completado', startrow=3)
+                    # Truco visual para el Excel de salida (espacio final)
+                    df_final = df_final.rename(columns={
+                        "NUMERO DE PARTE2": "NUMERO DE PARTE ", 
+                        "NUMERO DE SERIE3": "NUMERO DE SERIE "
+                    })
+
+                    st.success("¡Cruce realizado con éxito!")
+                    st.dataframe(df_final.head(5))
+
+                    nivel_superior = [
+                        "DATOS GENERALES", 
+                        "DATOS GENERALES", "DATOS GENERALES", 
+                        "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",
+                        "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  
+                        "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", 
+                        "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" 
+                    ]
                     
-                    workbook = writer.book
-                    worksheet = writer.sheets['Reporte_Completado']
-                    
-                    # 3. Formato del Título Principal (Fila 1)
-                    worksheet['A1'] = "REPORTE DE COMPONENTES ROTABLES"
-                    worksheet['A1'].font = Font(size=16, bold=True, color="FFFFFF")
-                    worksheet['A1'].alignment = Alignment(horizontal="center", vertical="center")
-                    worksheet['A1'].fill = openpyxl.styles.PatternFill(start_color="002060", end_color="002060", fill_type="solid")
-                    
-                    ultima_col_letra = get_column_letter(len(df_final.columns))
-                    worksheet.merge_cells(f'A1:{ultima_col_letra}1')
-                    
-                    # 4. Inyectar los agrupadores (Fila 3) usando openpyxl para evitar el error de Pandas
-                    for col_num, valor in enumerate(nivel_superior, 1):
-                        celda = worksheet.cell(row=3, column=col_num)
-                        celda.value = valor
-                        celda.font = Font(bold=True)
-                        celda.alignment = Alignment(horizontal="center", vertical="center")
-                        # Fondo gris claro para que resalte
-                        celda.fill = openpyxl.styles.PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-                    
-                    # 5. Crear la tabla oficial (Desde la Fila 4 hacia abajo)
-                    ultima_fila = len(df_final) + 4 
-                    rango_tabla = f"A4:{ultima_col_letra}{ultima_fila}"
-                    
-                    tabla = Table(displayName="TablaRotables", ref=rango_tabla)
-                    estilo = TableStyleInfo(
-                        name="TableStyleMedium9", 
-                        showFirstColumn=False,
-                        showLastColumn=False, 
-                        showRowStripes=True, 
-                        showColumnStripes=False
-                    )
-                    tabla.tableStyleInfo = estilo
-                    worksheet.add_table(tabla)
-                    
-                    # 6. Autoajuste de columnas (revisando desde la fila 3)
-                    for col_idx in range(1, worksheet.max_column + 1):
-                        column_letter = get_column_letter(col_idx)
-                        max_length = 0
+                    output_final = BytesIO()
+                    with pd.ExcelWriter(output_final, engine='openpyxl') as writer:
+                        df_final.to_excel(writer, index=False, sheet_name='Reporte_Completado', startrow=3)
                         
-                        for row_idx in range(3, worksheet.max_row + 1):
-                            cell = worksheet.cell(row=row_idx, column=col_idx)
-                            try:
-                                if cell.value:
-                                    longitud = len(str(cell.value))
-                                    if longitud > max_length:
-                                        max_length = longitud
-                            except:
-                                pass
-                                
-                        worksheet.column_dimensions[column_letter].width = max(max_length + 2, 10)
+                        workbook = writer.book
+                        worksheet = writer.sheets['Reporte_Completado']
+                        
+                        worksheet['A1'] = "REPORTE DE COMPONENTES ROTABLES"
+                        worksheet['A1'].font = Font(size=16, bold=True, color="FFFFFF")
+                        worksheet['A1'].alignment = Alignment(horizontal="center", vertical="center")
+                        worksheet['A1'].fill = openpyxl.styles.PatternFill(start_color="002060", end_color="002060", fill_type="solid")
+                        
+                        ultima_col_letra = get_column_letter(len(df_final.columns))
+                        worksheet.merge_cells(f'A1:{ultima_col_letra}1')
+                        
+                        for col_num, valor in enumerate(nivel_superior, 1):
+                            celda = worksheet.cell(row=3, column=col_num)
+                            celda.value = valor
+                            celda.font = Font(bold=True)
+                            celda.alignment = Alignment(horizontal="center", vertical="center")
+                            celda.fill = openpyxl.styles.PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+                        
+                        ultima_fila = len(df_final) + 4 
+                        rango_tabla = f"A4:{ultima_col_letra}{ultima_fila}"
+                        
+                        tabla = Table(displayName="TablaRotables", ref=rango_tabla)
+                        estilo = TableStyleInfo(
+                            name="TableStyleMedium9", 
+                            showFirstColumn=False,
+                            showLastColumn=False, 
+                            showRowStripes=True, 
+                            showColumnStripes=False
+                        )
+                        tabla.tableStyleInfo = estilo
+                        worksheet.add_table(tabla)
+                        
+                        for col_idx in range(1, worksheet.max_column + 1):
+                            column_letter = get_column_letter(col_idx)
+                            max_length = 0
+                            for row_idx in range(3, worksheet.max_row + 1):
+                                cell = worksheet.cell(row=row_idx, column=col_idx)
+                                try:
+                                    if cell.value:
+                                        longitud = len(str(cell.value))
+                                        if longitud > max_length:
+                                            max_length = longitud
+                                except:
+                                    pass
+                            worksheet.column_dimensions[column_letter].width = max(max_length + 2, 10)
 
-                output_final.seek(0)
+                    output_final.seek(0)
 
-                st.download_button(
-                    label="Descargar Reporte Finalizado",
-                    data=output_final,
-                    file_name="Reporte_Rotables_Completado.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    type="primary"
-                )
+                    st.download_button(
+                        label="Descargar Reporte Finalizado",
+                        data=output_final,
+                        file_name="Reporte_Rotables_Completado.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        type="primary"
+                    )
+                    
+                else:
+                    st.error("No se encontraron las columnas necesarias para el cruce. Verifica los archivos subidos.")
             except Exception as e:
                 st.error(f"Error procesando los datos: {e}")
