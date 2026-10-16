@@ -205,6 +205,7 @@ if check_password():
                     # Sistema de alertas
                     filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
                     if not filas_sin_match.empty:
+                        st.markdown("### ALERTAS")
                         st.error(f"No se encontro coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa si hay errores de captura")
                         st.dataframe(filas_sin_match)
                     else:
