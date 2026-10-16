@@ -212,11 +212,12 @@ if check_password():
 
                 # --- CONFIGURACIÓN DEL EXCEL DE SALIDA ---
                 nivel_superior = [
-                    "DATOS GENERALES", "DATOS GENERALES", 
-                    "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",
-                    "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  
-                    "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", 
-                    "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" 
+                    "DATOS GENERALES", # <-- NUEVO: Etiqueta para tu columna "No."
+                    "DATOS GENERALES", "DATOS GENERALES",          # FECHA, DESCRIPCIÓN
+                    "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",# NUMERO DE PARTE, NUMERO DE SERIE
+                    "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  # NUMERO DE PARTE2, NUMERO DE SERIE3
+                    "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", # EST, AC, DOCS
+                    "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" # N°TO, RO/EX, REGIMEN, OBSERVACIONES
                 ]
                 nivel_inferior = df_final.columns.tolist() 
                 df_final.columns = pd.MultiIndex.from_arrays([nivel_superior, nivel_inferior])
