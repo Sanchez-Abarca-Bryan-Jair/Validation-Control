@@ -160,16 +160,14 @@ if check_password():
             try:
                 df_plantilla = pd.read_excel(file_plantilla, dtype=str)
                 df_descargado = pd.read_excel(file_descargado, dtype=str)
-                
-                df_plantilla.columns = df_plantilla.columns.str.strip()
-                df_descargado.columns = df_descargado.columns.str.strip()
-
+                df_plantilla.columns = df_plantilla.columns.str.strip().str.upper()
+                df_descargado.columns = df_descargado.columns.str.strip().str.upper()
                 # Compatibilidad con archivos históricos
                 df_plantilla = df_plantilla.rename(columns={
                     "NUMERO DE PARTE.1": "NUMERO DE PARTE2",
                     "NUMERO DE SERIE.1": "NUMERO DE SERIE3"
                 })
-
+                # 3. Validar con los nombres reales del sistema (ahora en mayúsculas)
                 if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
                     df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
                     df_descargado["SN"] = df_descargado["SN"].astype(str).str.strip()
@@ -182,10 +180,11 @@ if check_password():
                         how="left"
                     )
 
-                    if "PN_DESCRIP" in df_cruce.columns and "DESCRIPCIÓN" in df_cruce.columns:
+                    # Buscar PN_DESCRIPTION en lugar de PN_DESCRIP
+                    if "PN_DESCRIPTION" in df_cruce.columns and "DESCRIPCIÓN" in df_cruce.columns:
                         df_cruce["DESCRIPCIÓN"] = np.where(
-                            df_cruce["PN_DESCRIP"].notna() & (df_cruce["PN_DESCRIP"] != "nan") & (df_cruce["PN_DESCRIP"].str.strip() != ""), 
-                            df_cruce["PN_DESCRIP"], 
+                            df_cruce["PN_DESCRIPTION"].notna() & (df_cruce["PN_DESCRIPTION"] != "nan") & (df_cruce["PN_DESCRIPTION"].str.strip() != ""), 
+                            df_cruce["PN_DESCRIPTION"], 
                             df_cruce["DESCRIPCIÓN"]
                         )
                     
@@ -210,6 +209,8 @@ if check_password():
 
                     st.success("¡Cruce realizado con éxito!")
                     st.dataframe(df_final.head(5))
+
+
 
                     nivel_superior = [
                         "DATOS GENERALES", 
