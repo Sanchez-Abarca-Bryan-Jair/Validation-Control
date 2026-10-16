@@ -202,7 +202,7 @@ if check_password():
                     df_final = df_final.fillna('')
 
                     # Sistema de alertas
-                    filas_sin_match = df_finla[df_final["DESCRIPCIÓN"] == ""]
+                    filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
                     if not filas_sin_match.empty:
                         st.warning(f"No se encontro coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa si hay errores de captura")
                         st.dataframe(filas_sin_match)
