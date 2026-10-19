@@ -168,6 +168,11 @@ if check_password():
                     "NUMERO DE PARTE.1": "NUMERO DE PARTE2",
                     "NUMERO DE SERIE.1": "NUMERO DE SERIE3"
                 })
+                st.markdown("### CORRECCION DE DATOS")
+                st.info("Si la alerta indica que no hubo coincidencia, busca el registro en esta tabla, corrige el dato mal escrito y presiona 'Enter'. El sistema hará el cruce de nuevo automáticamente.")
+                # Convertimos el Excel subido en una tabla editable y guardamos los cambios
+                df_plantilla = st.data_editor(df_plantilla, use_container_width=True)
+                st.markdown("---")
                 # 3. Validar con los nombres reales del sistema (ahora en mayúsculas)
                 if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
                     df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
