@@ -173,7 +173,7 @@ if check_password():
 
     # --- PESTAÑA 2: CRUCE DE INFORMACIÓN ---
     with tab2:
-        st.markdown(f"### <img src='{icono_cruce}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
+        st.markdown(f"### <img src='{icono_cruce}' width='35' style='vertical-align: middle; margin-right: 10px;'> CRUCE DE INFORMACION", unsafe_allow_html=True)
         st.markdown("Sube el reporte manual capturado y el archivo en crudo descargado del sistema.")
         
         st.markdown("""
