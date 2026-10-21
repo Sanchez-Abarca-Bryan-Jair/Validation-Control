@@ -10,8 +10,13 @@ from openpyxl.utils import get_column_letter
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
-st.set_page_config(page_title="Gestión de Rotables", layout="wide", page_icon="✈️")
+st.set_page_config(page_title="Gestión de Rotables", layout="wide")
 
+@st.cache_data
+def cargar_excel(file):
+    df = pd.read_excel(file, dtype=str)
+    df.columns = df.columns.str.strip().str.upper()
+    return df
 # ==========================================
 # SISTEMA DE AUTENTICACIÓN GLOBAL
 # ==========================================
@@ -184,20 +189,23 @@ if check_password():
         if file_plantilla and file_descargado:
             st.info("Procesando cruce de datos...")
             try:
-                df_plantilla = pd.read_excel(file_plantilla, dtype=str)
-                df_descargado = pd.read_excel(file_descargado, dtype=str)
-                df_plantilla.columns = df_plantilla.columns.str.strip().str.upper()
-                df_descargado.columns = df_descargado.columns.str.strip().str.upper()
+                # Usamos la función con caché en lugar de leer directo
+                df_plantilla_raw = cargar_excel(file_plantilla)
+                df_descargado = cargar_excel(file_descargado)
+                
                 # Compatibilidad con archivos históricos
-                df_plantilla = df_plantilla.rename(columns={
+                df_plantilla_raw = df_plantilla_raw.rename(columns={
                     "NUMERO DE PARTE.1": "NUMERO DE PARTE2",
                     "NUMERO DE SERIE.1": "NUMERO DE SERIE3"
                 })
-                st.markdown("### CORRECCION DE DATOS")
+                
+                st.markdown("### CORRECCIÓN DE DATOS")
                 st.info("Si la alerta indica que no hubo coincidencia, busca el registro en esta tabla, corrige el dato mal escrito y presiona 'Enter'. El sistema hará el cruce de nuevo automáticamente.")
-                # Convertimos el Excel subido en una tabla editable y guardamos los cambios
-                df_plantilla = st.data_editor(df_plantilla, use_container_width=True)
+                
+                # Convertimos el Excel subido en una tabla editable
+                df_plantilla = st.data_editor(df_plantilla_raw, use_container_width=True)
                 st.markdown("---")
+                
                 # 3. Validar con los nombres reales del sistema (ahora en mayúsculas)
                 if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
                     df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
@@ -236,25 +244,23 @@ if check_password():
                     filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
                     if not filas_sin_match.empty:
                         st.markdown("### ALERTAS")
-                        st.error(f"No se encontro coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa si hay errores de captura")
+                        st.error(f"No se encontró coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa la tabla superior para corregir los números de serie.")
                         st.dataframe(filas_sin_match)
                     else:
-                        st.success("¡Cruce realizado con éxito!")
+                        st.success("¡Cruce realizado con éxito para todos los registros!")
+                    
                     st.markdown("---")
                         
-
                     # Truco visual para el Excel de salida (espacio final)
                     df_final = df_final.rename(columns={
                         "NUMERO DE PARTE2": "NUMERO DE PARTE ", 
                         "NUMERO DE SERIE3": "NUMERO DE SERIE "
                     })
 
-                    st.success("¡Cruce realizado con éxito!")
                     st.markdown("### Tabla Completa")
                     st.dataframe(df_final)
 
-
-
+                    # Títulos superiores del Excel
                     nivel_superior = [
                         "DATOS GENERALES", 
                         "DATOS GENERALES", "DATOS GENERALES", 
