@@ -16,10 +16,32 @@ from openpyxl.utils import get_column_letter
 st.set_page_config(page_title="Gestión de Rotables", layout="wide")
 
 @st.cache_data
-def cargar_excel(file):
-    df = pd.read_excel(file, dtype=str)
-    df.columns = df.columns.str.strip().str.upper()
-    return df
+def cargar_excel(file,tipo,nombre_hoja):
+    # 1. Leer el lienzo de la hoja específica
+        file.seek(0)
+        df_raw = pd.read_excel(file, sheet_name=nombre_hoja, header=None, dtype=str)
+        
+        # 2. Escanear fila por fila buscando los encabezados reales
+        fila_header = 0
+        for idx, row in df_raw.iterrows():
+            fila_texto = str(row.values).upper()
+            if tipo == "plantilla" and ("NUMERO DE SERIE" in fila_texto or "DESCRIPCIÓN" in fila_texto):
+                fila_header = idx
+                break
+            elif tipo == "sistema" and ("SN" in fila_texto or "PN" in fila_texto):
+                fila_header = idx
+                break
+                
+        # 3. Reiniciar el archivo y leerlo oficialmente desde la fila encontrada
+        file.seek(0)
+        df = pd.read_excel(file, sheet_name=nombre_hoja, header=fila_header, dtype=str)
+        
+        # 4. Limpieza profunda: Quitar columnas y filas fantasma
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        df.columns = df.columns.str.strip().str.upper()
+        df = df.dropna(how='all')
+        
+        return df
 
 def load_icon(ruta_imagen):
     with open(ruta_imagen,"rb") as image_file:
@@ -194,16 +216,33 @@ if check_password():
         col1, col2 = st.columns(2)
         with col1:
             file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx"])
+            hoja_plantilla = None
+            if file_plantilla:
+                hojas_p = pd.ExcelFile(file_plantilla).sheet_names
+                if len(hojas_p) > 1:
+                    hoja_plantilla = st.selectbox("elecciona la pestaña a usar:", hojas_p)
+                else:
+                    hoja_plantilla = hojas_p[0]
+                file_plantilla.seek(0) # Reiniciamos la memoria del archivo
         with col2:
             file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx"])
+            hoja_descargado = None
+            if file_descargado:
+                hojas_d = pd.ExcelFile(file_descargado).sheet_names
+                if len(hojas_d) > 1:
+                    hoja_descargado = st.selectbox("🔄 Selecciona la pestaña a usar:", hojas_d)
+                else:
+                    hoja_descargado = hojas_d[0]
+                file_descargado.seek(0) # Reiniciamos la memoria del archivo
         st.markdown("---")
 
         if file_plantilla and file_descargado:
             st.info("Procesando cruce de datos...")
             try:
                 # Usamos la función con caché en lugar de leer directo
-                df_plantilla_raw = cargar_excel(file_plantilla)
-                df_descargado = cargar_excel(file_descargado)
+                # Usamos la auto-detección inteligente
+                df_plantilla_raw = cargar_excel(file_plantilla, "plantilla",hoja_plantilla)
+                df_descargado = cargar_excel(file_descargado, "sistema", hoja_descargado)
                 
                 # Compatibilidad con archivos históricos
                 df_plantilla_raw = df_plantilla_raw.rename(columns={
