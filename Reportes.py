@@ -72,7 +72,32 @@ if check_password():
     """
 
     st.markdown(banner_html, unsafe_allow_html=True)
-    
+
+    st.markdown("""
+    <style>
+        /* Aumentar el tamaño de letra general de las pestañas */
+        button[data-baseweb="tab"] {
+            font-size: 16px !important;
+            font-weight: 600 !important;
+        }
+        
+        /* Cambiar el color de la pestaña ACTIVA (Quita el rojo por defecto) */
+        button[data-baseweb="tab"][aria-selected="true"] {
+            color: #002060 !important; /* Color de texto azul oscuro */
+            border-bottom-color: #002060 !important; /* Línea inferior azul oscuro */
+        }
+        
+        /* Cambiar el color del indicador interior al hacer clic (el contorno rojo tenue) */
+        button[data-baseweb="tab"][aria-selected="true"] > div[data-testid="stMarkdownContainer"] > p {
+            color: #002060 !important;
+        }
+
+        /* Cambiar el color al pasar el cursor (Hover) */
+        button[data-baseweb="tab"]:hover {
+            color: #17a2b8 !important; /* Un tono azul más claro */
+        }
+    </style>
+    """,unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["Captura de Datos", "Cruce de Información"])
 
     # --- PESTAÑA 1: CAPTURA DE DATOS ---
