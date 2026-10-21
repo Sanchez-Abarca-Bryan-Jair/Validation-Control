@@ -1,8 +1,11 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+
 from io import BytesIO
 import openpyxl
+import base64
+
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -17,6 +20,15 @@ def cargar_excel(file):
     df = pd.read_excel(file, dtype=str)
     df.columns = df.columns.str.strip().str.upper()
     return df
+
+def load_icon(ruta_imagen):
+    with open(ruta_imagen,"rb") as image_file:
+        encoded_string = base64.b64encode(image_file.read()).decode()
+    return f"data:image/png;base64,{encoded_string}"
+
+icono_reporte = load_icon("icons/reporte-de-negocios.png")
+icono_alerta = load_icon("icons/peligro.png")
+icono_cruce = load_icon("icons/cruce-de-caminos.png")
 # ==========================================
 # SISTEMA DE AUTENTICACIÓN GLOBAL
 # ==========================================
@@ -107,7 +119,7 @@ if check_password():
 
     # --- PESTAÑA 1: CAPTURA DE DATOS ---
     with tab1:
-        st.header("Captura de Reporte Manual")
+        st.markdown(f"### <img src='{icono_reporte}' width='35' style='vertical-align: middle; margin-right: 10px;'> CAPTURA DE REPORTE MANUAL", unsafe_allow_html=True)
         st.markdown("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
 
         columnas_plantilla = [
@@ -161,7 +173,7 @@ if check_password():
 
     # --- PESTAÑA 2: CRUCE DE INFORMACIÓN ---
     with tab2:
-        st.header("Cruce de Información")
+        st.markdown(f"### <img src='{icono_cruce}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
         st.markdown("Sube el reporte manual capturado y el archivo en crudo descargado del sistema.")
         
         st.markdown("""
@@ -243,7 +255,7 @@ if check_password():
                     # Sistema de alertas
                     filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
                     if not filas_sin_match.empty:
-                        st.markdown("### ALERTAS")
+                        st.markdown(f"### <img src='{icono_alerta}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
                         st.error(f"No se encontró coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa la tabla superior para corregir los números de serie.")
                         st.dataframe(filas_sin_match)
                     else:
