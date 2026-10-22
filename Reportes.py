@@ -40,6 +40,8 @@ def cargar_excel(file,tipo,nombre_hoja):
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         df.columns = df.columns.str.strip().str.upper()
         df = df.dropna(how='all')
+
+        df = df.replace('_x0000_', '', regex=True)
         
         return df
 
