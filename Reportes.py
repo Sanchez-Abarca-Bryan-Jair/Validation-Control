@@ -121,26 +121,26 @@ if check_password():
            1. ESTILOS INFALIBLES PARA LAS PESTAÑAS (TAMAÑO Y COLOR)
            ---------------------------------------------------- */
         
-        /* Hacer la letra mucho más grande y en negrita */
-        .stTabs button[data-baseweb="tab"] p {
+        /* 1. Forzar el tamaño de la letra en todas las pestañas (Local y Nube) */
+        div[data-testid="stTabs"] button p {
             font-size: 22px !important; 
-            font-weight: 700 !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
         }
 
-        /* Cambiar el color de la línea inferior de la pestaña activa */
-        .stTabs button[data-baseweb="tab"][aria-selected="true"] {
-            border-bottom-color: #002060 !important; 
-            border-bottom-width: 4px !important; /* Línea más gruesa para que resalte */
+        /* 2. Cambiar la línea inferior roja por defecto a azul oscuro */
+        div[data-testid="stTabs"] button[aria-selected="true"] {
+            border-bottom: 4px solid #002060 !important;
         }
 
-        /* Cambiar el color del texto de la pestaña activa */
-        .stTabs button[data-baseweb="tab"][aria-selected="true"] p {
+        /* 3. Cambiar el color de la letra roja por defecto a azul oscuro */
+        div[data-testid="stTabs"] button[aria-selected="true"] p {
             color: #002060 !important;
         }
 
-        /* Cambiar el color al pasar el cursor (Hover) */
-        .stTabs button[data-baseweb="tab"]:hover p {
-            color: #17a2b8 !important; /* Un tono azul más claro */
+        /* 4. Efecto Hover (al pasar el mouse) */
+        div[data-testid="stTabs"] button:hover p {
+            color: #17a2b8 !important;
         }
 
         /* ----------------------------------------------------
