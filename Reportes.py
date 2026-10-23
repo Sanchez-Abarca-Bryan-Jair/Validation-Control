@@ -117,29 +117,28 @@ if check_password():
 
     st.markdown("""
     <style>
-        /* ----------------------------------------------------
-           1. ESTILOS INFALIBLES PARA LAS PESTAÑAS (TAMAÑO Y COLOR)
-           ---------------------------------------------------- */
-        
-        /* 1. Forzar el tamaño de la letra en todas las pestañas (Local y Nube) */
+        button[data-baseweb="tab"] p, 
+        button[data-baseweb="tab"] span, 
         div[data-testid="stTabs"] button p {
             font-size: 22px !important; 
             font-weight: 800 !important;
             text-transform: uppercase !important;
         }
 
-        /* 2. Cambiar la línea inferior roja por defecto a azul oscuro */
+        /* Cambiar la línea roja por azul oscuro */
+        button[data-baseweb="tab"][aria-selected="true"],
         div[data-testid="stTabs"] button[aria-selected="true"] {
             border-bottom: 4px solid #002060 !important;
         }
 
-        /* 3. Cambiar el color de la letra roja por defecto a azul oscuro */
-        div[data-testid="stTabs"] button[aria-selected="true"] p {
+        /* Cambiar el color de la letra activa a azul */
+        button[data-baseweb="tab"][aria-selected="true"] p,
+        button[data-baseweb="tab"][aria-selected="true"] span {
             color: #002060 !important;
         }
 
-        /* 4. Efecto Hover (al pasar el mouse) */
-        div[data-testid="stTabs"] button:hover p {
+        /* Efecto Hover */
+        button[data-baseweb="tab"]:hover p {
             color: #17a2b8 !important;
         }
 
