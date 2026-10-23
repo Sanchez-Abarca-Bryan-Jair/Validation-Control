@@ -42,6 +42,7 @@ def cargar_excel(file,tipo,nombre_hoja):
         df = df.dropna(how='all')
 
         df = df.replace('_x0000_', '', regex=True)
+        df = df.replace('\n','',regex=True)
         
         return df
 
@@ -80,7 +81,7 @@ if check_password():
     banner_html = """
     <style>
         .hero-banner {
-            background: linear-gradient(135deg, #38E54D 0%, #E607E9 100%);
+            background: linear-gradient(135deg, #490359 0%, #E607E9 100%);
             padding: 2.5rem 2rem;
             border-radius: 12px;
             margin-bottom: 2rem;
@@ -116,75 +117,141 @@ if check_password():
 
     st.markdown("""
     <style>
-        /* Aumentar el tamaño de letra general de las pestañas */
-        button[data-baseweb="tab"] {
-            font-size: 16px !important;
-            font-weight: 600 !important;
-        }
+        /* ----------------------------------------------------
+           1. ESTILOS INFALIBLES PARA LAS PESTAÑAS (TAMAÑO Y COLOR)
+           ---------------------------------------------------- */
         
-        /* Cambiar el color de la pestaña ACTIVA (Quita el rojo por defecto) */
-        button[data-baseweb="tab"][aria-selected="true"] {
-            color: #002060 !important; /* Color de texto azul oscuro */
-            border-bottom-color: #002060 !important; /* Línea inferior azul oscuro */
+        /* Hacer la letra mucho más grande y en negrita */
+        .stTabs button[data-baseweb="tab"] p {
+            font-size: 22px !important; 
+            font-weight: 700 !important;
         }
-        
-        /* Cambiar el color del indicador interior al hacer clic (el contorno rojo tenue) */
-        button[data-baseweb="tab"][aria-selected="true"] > div[data-testid="stMarkdownContainer"] > p {
+
+        /* Cambiar el color de la línea inferior de la pestaña activa */
+        .stTabs button[data-baseweb="tab"][aria-selected="true"] {
+            border-bottom-color: #002060 !important; 
+            border-bottom-width: 4px !important; /* Línea más gruesa para que resalte */
+        }
+
+        /* Cambiar el color del texto de la pestaña activa */
+        .stTabs button[data-baseweb="tab"][aria-selected="true"] p {
             color: #002060 !important;
         }
 
         /* Cambiar el color al pasar el cursor (Hover) */
-        button[data-baseweb="tab"]:hover {
+        .stTabs button[data-baseweb="tab"]:hover p {
             color: #17a2b8 !important; /* Un tono azul más claro */
         }
+
+        /* ----------------------------------------------------
+           2. ESTILOS PARA LAS CAJAS DE SUBIDA DE ARCHIVOS
+           ---------------------------------------------------- */
+        
+        /* Caja 1 (Azul) - Apuntando directamente a la etiqueta 'section' */
+        [data-testid="stColumn"]:nth-of-type(1) section[data-testid="stFileUploadDropzone"] {
+            background-color: #072a40 !important;
+            border: 2px dashed #17a2b8 !important;
+            border-radius: 10px !important;
+        }
+        
+        /* Caja 2 (Verde) */
+        [data-testid="stColumn"]:nth-of-type(2) section[data-testid="stFileUploadDropzone"] {
+            background-color: #053015 !important;
+            border: 2px dashed #28a745 !important;
+            border-radius: 10px !important;
+        }
+
+        /* Asegurar que el texto dentro de las cajas oscuras sea blanco */
+        section[data-testid="stFileUploadDropzone"] * {
+            color: white !important;
+        }
+        
+        /* Darle estilo al botoncito de "Browse files" para que no se pierda */
+        section[data-testid="stFileUploadDropzone"] button {
+            background-color: white !important;
+            color: #002060 !important;
+            font-weight: bold !important;
+        }
+        div[data-testid="stVerticalBlock"]:has(> div.element-container .marcador-alerta) {
+            background-color: #fdf3f4 !important; /* Fondo rojito/rosado muy suave */
+            padding: 25px !important;
+            border-radius: 12px !important;
+            border: 2px solid #f8d7da !important; /* Borde rojo pastel */
+            margin-top: 20px !important;
+            margin-bottom: 20px !important;
+        }
+        div[data-testid="stVerticalBlock"]:has(> div.element-container .marcador-cruce) {
+            background-color: #FCDEFF !important; 
+            border: 2px solid #F586FF !important;
+            padding: 25px !important;
+            border-radius: 12px !important;
+            margin-top: 20px !important;
+            margin-bottom: 20px !important;
+        }
+        div[data-testid="stVerticalBlock"]:has(> div.element-container .marcador-tabla) {
+                    background-color: #EDEDED!important; 
+                    border: 2px solid #C0C0C0!important;
+                    padding: 10px !important;
+                    border-radius: 12px !important;
+                    margin-top: 20px !important;
+                    margin-bottom: 20px !important;
+                } 
     </style>
-    """,unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["Captura de Datos", "Cruce de Información"])
+    """, unsafe_allow_html=True)
+    tab1, tab2 = st.tabs(["CAPTURA DE DATOS", "CRUCE DE INFORMACION"])
 
     # --- PESTAÑA 1: CAPTURA DE DATOS ---
     with tab1:
-        st.markdown(f"### <img src='{icono_reporte}' width='35' style='vertical-align: middle; margin-right: 10px;'> CAPTURA DE REPORTE MANUAL", unsafe_allow_html=True)
-        st.markdown("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
-
-        columnas_plantilla = [
-            "No.", "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
-            "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
-            "N°TO", "RO/EX", "REGIMEN", "OBSERVACIONES"
-        ]
-        
-        if "df_input" not in st.session_state:
-            df_vacio = pd.DataFrame(columns=columnas_plantilla)
-            for i in range(5):
-                df_vacio.loc[i] = [None] * 14
+        with st.container():
+            st.markdown(f"### <img src='{icono_reporte}' width='35' style='vertical-align: middle; margin-right: 10px;'> CAPTURA DE REPORTE MANUAL", unsafe_allow_html=True)
+            st.markdown("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
             
-            df_vacio["FECHA"] = pd.to_datetime(df_vacio["FECHA"])
+            st.markdown('<div class="marcador-tabla"></div>', unsafe_allow_html=True)
             
-            for col in columnas_plantilla:
-                if col != "FECHA":
-                    df_vacio[col] = df_vacio[col].astype(str)
+            columnas_plantilla = [
+                "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
+                "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
+                "N°TO", "RO/EX", "REGIMEN", "OBSERVACIONES"
+            ]
+            
+            if "df_input" not in st.session_state:
+                df_vacio = pd.DataFrame(columns=columnas_plantilla)
+                for i in range(5):
+                    df_vacio.loc[i] = [None] * 13 # Ahora son 13 columnas
+                
+                df_vacio["FECHA"] = pd.to_datetime(df_vacio["FECHA"])
+                
+                for col in columnas_plantilla:
+                    if col != "FECHA":
+                        df_vacio[col] = df_vacio[col].astype(str)
 
-            st.session_state["df_input"] = df_vacio
+                df_vacio.index = range(1, len(df_vacio) + 1)
+                df_vacio.index.name = "No."
 
-        edited_df = st.data_editor(
-            st.session_state["df_input"],
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
-                "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN"),
-                "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE"),
-                "NUMERO DE SERIE": st.column_config.TextColumn("INSTALADO: NO. DE SERIE"),
-                "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE"),
-                "NUMERO DE SERIE3": st.column_config.TextColumn("REMOVIDO: NO. DE SERIE")
-            }
-        )
+                st.session_state["df_input"] = df_vacio
+
+            edited_df = st.data_editor(
+                st.session_state["df_input"],
+                num_rows="dynamic",
+                use_container_width=True,
+                column_config={
+                    "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
+                    "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN"),
+                    "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE"),
+                    "NUMERO DE SERIE": st.column_config.TextColumn("INSTALADO: NO. DE SERIE"),
+                    "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE"),
+                    "NUMERO DE SERIE3": st.column_config.TextColumn("REMOVIDO: NO. DE SERIE")
+                }
+            )
 
         st.markdown("---")
         
+        # 4. Magia final: Convertimos el índice visual de nuevo en la columna "No." para el sistema
+        df_final_captura = edited_df.reset_index()
+        
         output_captura = BytesIO()
         with pd.ExcelWriter(output_captura, engine='openpyxl') as writer:
-            edited_df.to_excel(writer, index=False, sheet_name='Reporte_Manual')
+            df_final_captura.to_excel(writer, index=False, sheet_name='Reporte_Manual')
         output_captura.seek(0)
 
         st.download_button(
@@ -195,57 +262,46 @@ if check_password():
             type="primary"
         )
 
+        # Guardamos en memoria la tabla con la columna "No." lista para la Pestaña 2
+        st.session_state["datos_capturados"] = df_final_captura.copy()
+
     # --- PESTAÑA 2: CRUCE DE INFORMACIÓN ---
     with tab2:
-        st.markdown(f"### <img src='{icono_cruce}' width='35' style='vertical-align: middle; margin-right: 10px;'> CRUCE DE INFORMACION", unsafe_allow_html=True)
-        st.markdown("Sube el reporte manual capturado y el archivo en crudo descargado del sistema.")
-        
-        st.markdown("""
-            <style>
-            [data-testid="column"]:nth-of-type(1) div[data-testid="stFileUploadDropzone"] {
-                background-color: #072a40 !important;
-                border: 2px dashed #17a2b8 !important;
-                border-radius: 10px !important;
-            }
-            [data-testid="column"]:nth-of-type(2) div[data-testid="stFileUploadDropzone"] {
-                background-color: #053015 !important;
-                border: 2px dashed #28a745 !important;
-                border-radius: 10px !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx"])
-            hoja_plantilla = None
-            if file_plantilla:
-                hojas_p = pd.ExcelFile(file_plantilla).sheet_names
-                if len(hojas_p) > 1:
-                    hoja_plantilla = st.selectbox("elecciona la pestaña a usar:", hojas_p)
+        with st.container():
+            st.markdown('<div class="marcador-cruce"></div>', unsafe_allow_html=True)
+            st.markdown(f"### <img src='{icono_cruce}' width='35' style='vertical-align: middle; margin-right: 10px;'> CRUCE DE INFORMACION", unsafe_allow_html=True)
+            st.markdown("Sube el reporte manual capturado y el archivo en crudo descargado del sistema.")
+            usar_captura = st.toggle("Usar la tabla recien capturada",value=True)
+
+            df_plantilla_raw = None
+            file_descargado = None
+            col1, col2 = st.columns(2)
+            with col1:
+                if usar_captura:
+                    st.success("Datos manuales enlazados correctamente desde la Pestaña 1.")
+                    # Rescatamos la tabla de la memoria y limpiamos filas vacías
+                    if "datos_capturados" in st.session_state:
+                        df_plantilla_raw = st.session_state["datos_capturados"].dropna(how='all')
                 else:
-                    hoja_plantilla = hojas_p[0]
-                file_plantilla.seek(0) # Reiniciamos la memoria del archivo
-        with col2:
-            file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx"])
-            hoja_descargado = None
-            if file_descargado:
-                hojas_d = pd.ExcelFile(file_descargado).sheet_names
-                if len(hojas_d) > 1:
-                    hoja_descargado = st.selectbox("🔄 Selecciona la pestaña a usar:", hojas_d)
-                else:
-                    hoja_descargado = hojas_d[0]
-                file_descargado.seek(0) # Reiniciamos la memoria del archivo
+                    file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx"])
+                    if file_plantilla:
+                        hojas_p = pd.ExcelFile(file_plantilla).sheet_names
+                        hoja_plantilla = st.selectbox("Selecciona la pestaña a usar:", hojas_p) if len(hojas_p) > 1 else hojas_p[0]
+                        file_plantilla.seek(0)
+                        df_plantilla_raw = cargar_excel(file_plantilla, "plantilla", hoja_plantilla)
+
+            with col2:
+                file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx"])
+                if file_descargado:
+                    hojas_d = pd.ExcelFile(file_descargado).sheet_names
+                    hoja_descargado = st.selectbox("Selecciona la pestaña a usar:", hojas_d) if len(hojas_d) > 1 else hojas_d[0]
+                    file_descargado.seek(0)
+                    df_descargado = cargar_excel(file_descargado, "sistema", hoja_descargado)
         st.markdown("---")
 
-        if file_plantilla and file_descargado:
+        if df_plantilla_raw is not None and file_descargado is not None:
             st.info("Procesando cruce de datos...")
             try:
-                # Usamos la función con caché en lugar de leer directo
-                # Usamos la auto-detección inteligente
-                df_plantilla_raw = cargar_excel(file_plantilla, "plantilla",hoja_plantilla)
-                df_descargado = cargar_excel(file_descargado, "sistema", hoja_descargado)
-                
                 # Compatibilidad con archivos históricos
                 df_plantilla_raw = df_plantilla_raw.rename(columns={
                     "NUMERO DE PARTE.1": "NUMERO DE PARTE2",
@@ -296,9 +352,11 @@ if check_password():
                     # Sistema de alertas
                     filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
                     if not filas_sin_match.empty:
-                        st.markdown(f"### <img src='{icono_alerta}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
-                        st.error(f"No se encontró coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa la tabla superior para corregir los números de serie.")
-                        st.dataframe(filas_sin_match)
+                        with st.container():
+                            st.markdown('<div class="marcador-alerta"></div>', unsafe_allow_html=True)
+                            st.markdown(f"### <img src='{icono_alerta}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
+                            st.error(f"No se encontró coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa la tabla superior para corregir los números de serie.")
+                            st.dataframe(filas_sin_match)
                     else:
                         st.success("¡Cruce realizado con éxito para todos los registros!")
                     
