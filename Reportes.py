@@ -307,14 +307,16 @@ if check_password():
                     "NUMERO DE SERIE.1": "NUMERO DE SERIE3"
                 })
                 
-                st.markdown("### CORRECCIÓN DE DATOS")
-                st.info("Si la alerta indica que no hubo coincidencia, busca el registro en esta tabla, corrige el dato mal escrito y presiona 'Enter'. El sistema hará el cruce de nuevo automáticamente.")
+                espacio_alertas = st.container()
+                espacio_edicion = st.container()
+                espacio_resultados = st.container()
                 
-                # Convertimos el Excel subido en una tabla editable
-                df_plantilla = st.data_editor(df_plantilla_raw, use_container_width=True)
-                st.markdown("---")
+                with espacio_edicion:
+                    st.markdown("### CORRECCIÓN DE DATOS")
+                    st.info("Si la alerta de arriba indica que no hubo coincidencia, busca el registro aquí, corrígelo y presiona 'Enter'.")
+                    df_plantilla = st.data_editor(df_plantilla_raw, use_container_width=True)
+                    st.markdown("---")
                 
-                # 3. Validar con los nombres reales del sistema (ahora en mayúsculas)
                 if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
                     df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
                     df_descargado["SN"] = df_descargado["SN"].astype(str).str.strip()
@@ -327,7 +329,6 @@ if check_password():
                         how="left"
                     )
 
-                    # Buscar PN_DESCRIPTION en lugar de PN_DESCRIP
                     if "PN_DESCRIPTION" in df_cruce.columns and "DESCRIPCIÓN" in df_cruce.columns:
                         df_cruce["DESCRIPCIÓN"] = np.where(
                             df_cruce["PN_DESCRIPTION"].notna() & (df_cruce["PN_DESCRIPTION"] != "nan") & (df_cruce["PN_DESCRIPTION"].str.strip() != ""), 
@@ -348,98 +349,98 @@ if check_password():
                     df_final = df_final.replace(['nan', 'NaN', '#REF!', 'None', 'NaT'], '')
                     df_final = df_final.fillna('')
 
-                    # Sistema de alertas
                     filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
-                    if not filas_sin_match.empty:
-                        with st.container():
-                            st.markdown('<div class="marcador-alerta"></div>', unsafe_allow_html=True)
-                            st.markdown(f"### <img src='{icono_alerta}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
-                            st.error(f"No se encontró coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa la tabla superior para corregir los números de serie.")
-                            st.dataframe(filas_sin_match)
-                    else:
-                        st.success("¡Cruce realizado con éxito para todos los registros!")
                     
-                    st.markdown("---")
-                        
-                    # Truco visual para el Excel de salida (espacio final)
-                    df_final = df_final.rename(columns={
-                        "NUMERO DE PARTE2": "NUMERO DE PARTE ", 
-                        "NUMERO DE SERIE3": "NUMERO DE SERIE "
-                    })
-
-                    st.markdown("### Tabla Completa")
-                    st.dataframe(df_final)
-
-                    # Títulos superiores del Excel
-                    nivel_superior = [
-                        "DATOS GENERALES", 
-                        "DATOS GENERALES", "DATOS GENERALES", 
-                        "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",
-                        "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  
-                        "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", 
-                        "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" 
-                    ]
+                    with espacio_alertas:
+                        if not filas_sin_match.empty:
+                            with st.container():
+                                st.markdown('<div class="marcador-alerta"></div>', unsafe_allow_html=True)
+                                st.markdown(f"### <img src='{icono_alerta}' width='35' style='vertical-align: middle; margin-right: 10px;'> ALERTAS", unsafe_allow_html=True)
+                                st.error(f"No se encontró coincidencia en el sistema para {len(filas_sin_match)} componentes. Revisa la tabla de corrección abajo.")
+                                st.dataframe(filas_sin_match)
+                        else:
+                            st.success("¡Cruce realizado con éxito para todos los registros!")
+                        st.markdown("---")
                     
-                    output_final = BytesIO()
-                    with pd.ExcelWriter(output_final, engine='openpyxl') as writer:
-                        df_final.to_excel(writer, index=False, sheet_name='Reporte_Completado', startrow=3)
+                    with espacio_resultados:
+                        # Truco visual para el Excel de salida
+                        df_final = df_final.rename(columns={
+                            "NUMERO DE PARTE2": "NUMERO DE PARTE ", 
+                            "NUMERO DE SERIE3": "NUMERO DE SERIE "
+                        })
+
+                        st.markdown("### Tabla Completa")
+                        st.dataframe(df_final)
+
+                        # Títulos superiores del Excel
+                        nivel_superior = [
+                            "DATOS GENERALES", 
+                            "DATOS GENERALES", "DATOS GENERALES", 
+                            "COMPONENTE INSTALADO", "COMPONENTE INSTALADO",
+                            "COMPONENTE REMOVIDO", "COMPONENTE REMOVIDO",  
+                            "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", 
+                            "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES", "DATOS GENERALES" 
+                        ]
                         
-                        workbook = writer.book
-                        worksheet = writer.sheets['Reporte_Completado']
-                        
-                        worksheet['A1'] = "REPORTE DE COMPONENTES ROTABLES"
-                        worksheet['A1'].font = Font(size=16, bold=True, color="FFFFFF")
-                        worksheet['A1'].alignment = Alignment(horizontal="center", vertical="center")
-                        worksheet['A1'].fill = openpyxl.styles.PatternFill(start_color="002060", end_color="002060", fill_type="solid")
-                        
-                        ultima_col_letra = get_column_letter(len(df_final.columns))
-                        worksheet.merge_cells(f'A1:{ultima_col_letra}1')
-                        
-                        for col_num, valor in enumerate(nivel_superior, 1):
-                            celda = worksheet.cell(row=3, column=col_num)
-                            celda.value = valor
-                            celda.font = Font(bold=True)
-                            celda.alignment = Alignment(horizontal="center", vertical="center")
-                            celda.fill = openpyxl.styles.PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-                        
-                        ultima_fila = len(df_final) + 4 
-                        rango_tabla = f"A4:{ultima_col_letra}{ultima_fila}"
-                        
-                        tabla = Table(displayName="TablaRotables", ref=rango_tabla)
-                        estilo = TableStyleInfo(
-                            name="TableStyleMedium9", 
-                            showFirstColumn=False,
-                            showLastColumn=False, 
-                            showRowStripes=True, 
-                            showColumnStripes=False
+                        output_final = BytesIO()
+                        with pd.ExcelWriter(output_final, engine='openpyxl') as writer:
+                            df_final.to_excel(writer, index=False, sheet_name='Reporte_Completado', startrow=3)
+                            
+                            workbook = writer.book
+                            worksheet = writer.sheets['Reporte_Completado']
+                            
+                            worksheet['A1'] = "REPORTE DE COMPONENTES ROTABLES"
+                            worksheet['A1'].font = Font(size=16, bold=True, color="FFFFFF")
+                            worksheet['A1'].alignment = Alignment(horizontal="center", vertical="center")
+                            worksheet['A1'].fill = openpyxl.styles.PatternFill(start_color="002060", end_color="002060", fill_type="solid")
+                            
+                            ultima_col_letra = get_column_letter(len(df_final.columns))
+                            worksheet.merge_cells(f'A1:{ultima_col_letra}1')
+                            
+                            for col_num, valor in enumerate(nivel_superior, 1):
+                                celda = worksheet.cell(row=3, column=col_num)
+                                celda.value = valor
+                                celda.font = Font(bold=True)
+                                celda.alignment = Alignment(horizontal="center", vertical="center")
+                                celda.fill = openpyxl.styles.PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+                            
+                            ultima_fila = len(df_final) + 4 
+                            rango_tabla = f"A4:{ultima_col_letra}{ultima_fila}"
+                            
+                            tabla = Table(displayName="TablaRotables", ref=rango_tabla)
+                            estilo = TableStyleInfo(
+                                name="TableStyleMedium9", 
+                                showFirstColumn=False,
+                                showLastColumn=False, 
+                                showRowStripes=True, 
+                                showColumnStripes=False
+                            )
+                            tabla.tableStyleInfo = estilo
+                            worksheet.add_table(tabla)
+                            
+                            for col_idx in range(1, worksheet.max_column + 1):
+                                column_letter = get_column_letter(col_idx)
+                                max_length = 0
+                                for row_idx in range(3, worksheet.max_row + 1):
+                                    cell = worksheet.cell(row=row_idx, column=col_idx)
+                                    try:
+                                        if cell.value:
+                                            longitud = len(str(cell.value))
+                                            if longitud > max_length:
+                                                max_length = longitud
+                                    except:
+                                        pass
+                                worksheet.column_dimensions[column_letter].width = max(max_length + 2, 10)
+
+                        output_final.seek(0)
+
+                        st.download_button(
+                            label="Descargar Reporte Finalizado",
+                            data=output_final,
+                            file_name="Reporte_Rotables_Completado.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            type="primary"
                         )
-                        tabla.tableStyleInfo = estilo
-                        worksheet.add_table(tabla)
-                        
-                        for col_idx in range(1, worksheet.max_column + 1):
-                            column_letter = get_column_letter(col_idx)
-                            max_length = 0
-                            for row_idx in range(3, worksheet.max_row + 1):
-                                cell = worksheet.cell(row=row_idx, column=col_idx)
-                                try:
-                                    if cell.value:
-                                        longitud = len(str(cell.value))
-                                        if longitud > max_length:
-                                            max_length = longitud
-                                except:
-                                    pass
-                            worksheet.column_dimensions[column_letter].width = max(max_length + 2, 10)
-
-                    output_final.seek(0)
-
-                    st.download_button(
-                        label="Descargar Reporte Finalizado",
-                        data=output_final,
-                        file_name="Reporte_Rotables_Completado.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        type="primary"
-                    )
-                    
                 else:
                     st.error("No se encontraron las columnas necesarias para el cruce. Verifica los archivos subidos.")
             except Exception as e:
