@@ -13,7 +13,6 @@ from openpyxl.utils import get_column_letter
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
-st.set_page_config(page_title="Gestión de Rotables", layout="wide")
 
 @st.cache_data
 def cargar_excel(file,tipo,nombre_hoja):
@@ -54,6 +53,9 @@ def load_icon(ruta_imagen):
 icono_reporte = load_icon("icons/reporte-de-negocios.png")
 icono_alerta = load_icon("icons/peligro.png")
 icono_cruce = load_icon("icons/cruce-de-caminos.png")
+icono_banner = load_icon("icons/verificar.png")
+
+st.set_page_config(page_title="Gestión de Rotables", page_icon="icons/avion.png", layout="wide")
 # ==========================================
 # SISTEMA DE AUTENTICACIÓN GLOBAL
 # ==========================================
@@ -78,9 +80,9 @@ def check_password():
 # APLICACIÓN PRINCIPAL
 # ==========================================
 if check_password():
-    banner_html = """
+    banner_html = f"""
     <style>
-        .hero-banner {
+        .hero-banner {{
             background: linear-gradient(135deg, #490359 0%, #E607E9 100%);
             padding: 2.5rem 2rem;
             border-radius: 12px;
@@ -91,25 +93,30 @@ if check_password():
             display: flex;
             flex-direction: column;
             justify-content: center;
-        }
-        .hero-title {
+        }}
+        .hero-title {{
             font-size: 2.4rem;
             font-weight: 800;
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             letter-spacing: 0.5px;
-        }
-        .hero-subtitle {
+            display: flex; 
+            aling-items: center;
+        }}
+        .hero-subtitle {{
             font-size: 1.1rem;
             font-weight: 400;
             margin-top: 8px;
             opacity: 0.9;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
+        }}
     </style>
 
     <div class="hero-banner">
-        <div class="hero-title">SISTEMA DE REPORTES DE ROTABLES</div>
+        <div class="hero-title">
+            <img src='{icono_banner}' width='50' style='margin:10px;'>
+            SISTEMA DE REPORTES DE ROTABLES
+        </div>
     </div>
     """
 
@@ -206,7 +213,28 @@ if check_password():
             st.markdown("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
             
             st.markdown('<div class="marcador-tabla"></div>', unsafe_allow_html=True)
-            
+            with st.expander("Subir borrador"):
+                borrador = st.file_uploader("Cargar Borrador (.xlsx)", type=["xlsx"])
+                if borrador:
+                    df_borrador = pd.read_excel(borrador, dtype=str)
+                    
+                    if "FECHA" in df_borrador.columns:
+                        df_borrador["FECHA"] = pd.to_datetime(df_borrador["FECHA"], errors='coerce')
+                    
+                    if "No." in df_borrador.columns:
+                        df_borrador = df_borrador.drop(columns=["No."])
+                    df_borrador.index = range(1, len(df_borrador) + 1)
+                    df_borrador.index.name = "No."
+                    
+                    # Inyectamos el borrador en la memoria base
+                    st.session_state["df_input"] = df_borrador
+                    
+                    # Borramos la memoria temporal del editor para forzarlo a mostrar los nuevos datos
+                    if "editor_captura" in st.session_state:
+                        del st.session_state["editor_captura"]
+                    
+                    st.success("¡Borrador recuperado con éxito! Revisa la tabla abajo.")
+
             columnas_plantilla = [
                 "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
                 "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
@@ -233,6 +261,7 @@ if check_password():
                 st.session_state["df_input"],
                 num_rows="dynamic",
                 use_container_width=True,
+                key="editor_captura",
                 column_config={
                     "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
                     "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN"),
@@ -245,7 +274,7 @@ if check_password():
 
         st.markdown("---")
         
-        # 4. Magia final: Convertimos el índice visual de nuevo en la columna "No." para el sistema
+        #Convertimos el índice visual de nuevo en la columna "No." para el sistema
         df_final_captura = edited_df.reset_index()
         
         output_captura = BytesIO()
@@ -253,13 +282,25 @@ if check_password():
             df_final_captura.to_excel(writer, index=False, sheet_name='Reporte_Manual')
         output_captura.seek(0)
 
-        st.download_button(
-            label="Descargar Reporte para Enviar",
-            data=output_captura,
-            file_name="Reporte_Manual_Capturado.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary"
-        )
+        col_btn1, col_btn2 = st.columns(2)
+        
+        with col_btn1:
+            st.download_button(
+                label="Descargar Reporte para Enviar (Final)",
+                data=output_captura,
+                file_name="Reporte_Manual_Capturado.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="primary" # Color resaltado
+            )
+            
+        with col_btn2:
+            st.download_button(
+                label="Guardar Borrador (Respaldo Temporal)",
+                data=output_captura, # Reutilizamos la misma exportación
+                file_name="Borrador_Captura_Rotables.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                # Sin type="primary" para que sea de color gris/secundario y no se confunda
+            )
 
         # Guardamos en memoria la tabla con la columna "No." lista para la Pestaña 2
         st.session_state["datos_capturados"] = df_final_captura.copy()
