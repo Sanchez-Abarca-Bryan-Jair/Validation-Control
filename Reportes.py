@@ -359,7 +359,6 @@ with tab1:
             with col1:
                 if usar_captura:
                     st.success("Datos manuales enlazados correctamente desde la Pestaña 1.")
-                    # Rescatamos la tabla de la memoria y limpiamos filas vacías
                     if "datos_capturados" in st.session_state:
                         df_plantilla_raw = st.session_state["datos_capturados"].dropna(how='all')
                 else:

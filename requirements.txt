@@ -1,5 +1,6 @@
 pandas
 openpyxl
 numpy
-psycopg2-binary
+psycopg
+psycopg-binary
 SQLAlchemy
