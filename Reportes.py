@@ -319,7 +319,7 @@ with tab1:
             type="primary"
         )
 
-        if st.button("Limpiar Sistema y Empezar Nuevo Reporte", type="secondary"):
+        if st.button("Limpiar Sistema y Empezar Nuevo Reporte", type="secondary", key="btn_limpiar_pestaña1"):
             conn = st.connection("postgresql", type="sql")
             try:
                 with conn.session as s:
@@ -521,7 +521,7 @@ with tab1:
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             type="primary"
                         )
-                        if st.button("Limpiar Sistema y Empezar Nuevo Reporte", type="secondary"):
+                        if st.button("Limpiar Sistema y Empezar Nuevo Reporte", type="secondary", key="btn_limpiar_pestaña2"):
                             conn = st.connection("postgresql", type="sql")
                             try:
                                 with conn.session as s:
