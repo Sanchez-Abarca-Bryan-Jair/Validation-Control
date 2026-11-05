@@ -10,6 +10,9 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 
+import json
+from sqlalchemy import text
+
 # ==========================================
 # CONFIGURACIÓN DE LA PÁGINA
 # ==========================================
@@ -127,7 +130,7 @@ if check_password():
         button[data-baseweb="tab"] p, 
         button[data-baseweb="tab"] span, 
         div[data-testid="stTabs"] button p {
-            font-size: 22px !important; 
+            font-size: 18px !important; 
             font-weight: 800 !important;
             text-transform: uppercase !important;
         }
@@ -206,75 +209,101 @@ if check_password():
     """, unsafe_allow_html=True)
     tab1, tab2 = st.tabs(["CAPTURA DE DATOS", "CRUCE DE INFORMACION"])
 
-    # --- PESTAÑA 1: CAPTURA DE DATOS ---
-    with tab1:
-        with st.container():
-            st.markdown(f"### <img src='{icono_reporte}' width='35' style='vertical-align: middle; margin-right: 10px;'> CAPTURA DE REPORTE MANUAL", unsafe_allow_html=True)
-            st.markdown("Ingresa la información de los componentes. Puedes agregar nuevas filas al final de la tabla.")
-            
-            st.markdown('<div class="marcador-tabla"></div>', unsafe_allow_html=True)
-            with st.expander("Subir borrador"):
-                borrador = st.file_uploader("Cargar Borrador (.xlsx)", type=["xlsx"])
-                if borrador:
-                    df_borrador = pd.read_excel(borrador, dtype=str)
-                    
-                    if "FECHA" in df_borrador.columns:
-                        df_borrador["FECHA"] = pd.to_datetime(df_borrador["FECHA"], errors='coerce')
-                    
-                    if "No." in df_borrador.columns:
-                        df_borrador = df_borrador.drop(columns=["No."])
-                    df_borrador.index = range(1, len(df_borrador) + 1)
-                    df_borrador.index.name = "No."
-                    
-                    # Inyectamos el borrador en la memoria base
-                    st.session_state["df_input"] = df_borrador
-                    
-                    # Borramos la memoria temporal del editor para forzarlo a mostrar los nuevos datos
-                    if "editor_captura" in st.session_state:
-                        del st.session_state["editor_captura"]
-                    
-                    st.success("¡Borrador recuperado con éxito! Revisa la tabla abajo.")
-
-            columnas_plantilla = [
-                "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
-                "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
-                "N°TO", "RO/EX", "REGIMEN", "OBSERVACIONES"
-            ]
-            
-            if "df_input" not in st.session_state:
-                df_vacio = pd.DataFrame(columns=columnas_plantilla)
-                for i in range(5):
-                    df_vacio.loc[i] = [None] * 13 # Ahora son 13 columnas
+# --- PESTAÑA 1: CAPTURA DE DATOS ---
+with tab1:
+    with st.container():
+        st.markdown(f"### <img src='{icono_reporte}' width='35' style='vertical-align: middle; margin-right: 10px;'> CAPTURA DE REPORTE MANUAL", unsafe_allow_html=True)
+        st.markdown('<div class="marcador-tabla"></div>', unsafe_allow_html=True)
+        
+        columnas_plantilla = [
+            "FECHA", "DESCRIPCIÓN", "NUMERO DE PARTE", "NUMERO DE SERIE", 
+            "NUMERO DE PARTE2", "NUMERO DE SERIE3", "EST", "AC", "DOCS",
+            "N°TO", "RO/EX", "REGIMEN", "OBSERVACIONES"
+        ]
+        
+        # Conexión a la base de datos y usuario genérico
+        conn = st.connection("postgresql", type="sql")
+        usuario_actual = "estacion_principal"
+        
+        # 1. RECUPERAR BORRADOR (Solo corre si la página se acaba de cargar)
+        if "df_input" not in st.session_state:
+            try:
+                df_bd = conn.query(f"SELECT datos_json FROM borradores_rotables WHERE id_usuario = '{usuario_actual}'", ttl=0)
                 
-                df_vacio["FECHA"] = pd.to_datetime(df_vacio["FECHA"])
+                if not df_bd.empty:
+                    datos_recuperados = df_bd.iloc[0]['datos_json']
+                    
+                    # Si el conector lo devuelve como texto, lo convertimos a formato Python
+                    if isinstance(datos_recuperados, str):
+                        datos_recuperados = json.loads(datos_recuperados)
+                        
+                    df_inicio = pd.DataFrame(datos_recuperados)
+                    
+                    df_inicio = df_inicio[columnas_plantilla]
+                    
+                    df_inicio["FECHA"] = pd.to_datetime(df_inicio["FECHA"], errors='coerce')
+                    st.toast("Borrador recuperado de la nube.")
+                else:
+                    df_inicio = pd.DataFrame(columns=columnas_plantilla)
+                    for i in range(5):
+                        df_inicio.loc[i] = [None] * 13
+                    df_inicio["FECHA"] = pd.to_datetime(df_inicio["FECHA"])
                 
                 for col in columnas_plantilla:
                     if col != "FECHA":
-                        df_vacio[col] = df_vacio[col].astype(str)
+                        df_inicio[col] = df_inicio[col].astype(str).replace('None', '')
+                
+                df_inicio.index = range(1, len(df_inicio) + 1)
+                df_inicio.index.name = "No."
+                
+                st.session_state["df_input"] = df_inicio
+                st.session_state["ultimo_json_guardado"] = ""
+            except Exception as e:
+                st.error(f"Error conectando a la BD: {e}")
+                st.session_state["df_input"] = pd.DataFrame(columns=columnas_plantilla)
 
-                df_vacio.index = range(1, len(df_vacio) + 1)
-                df_vacio.index.name = "No."
+        # 2. MOSTRAR TABLA
+        edited_df = st.data_editor(
+            st.session_state["df_input"],
+            num_rows="dynamic",
+            use_container_width=True,
+            key="editor_captura_manual",
+            column_config={
+                "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
+                "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN"),
+                "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE"),
+                "NUMERO DE SERIE": st.column_config.TextColumn("INSTALADO: NO. DE SERIE"),
+                "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE"),
+                "NUMERO DE SERIE3": st.column_config.TextColumn("REMOVIDO: NO. DE SERIE")
+            }
+        )
 
-                st.session_state["df_input"] = df_vacio
-
-            edited_df = st.data_editor(
-                st.session_state["df_input"],
-                num_rows="dynamic",
-                use_container_width=True,
-                key="editor_captura",
-                column_config={
-                    "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
-                    "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN"),
-                    "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE"),
-                    "NUMERO DE SERIE": st.column_config.TextColumn("INSTALADO: NO. DE SERIE"),
-                    "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE"),
-                    "NUMERO DE SERIE3": st.column_config.TextColumn("REMOVIDO: NO. DE SERIE")
-                }
-            )
+        # 3. AUTO-GUARDADO SILENCIOSO
+        df_para_guardar = edited_df.copy()
+        df_para_guardar['FECHA'] = df_para_guardar['FECHA'].astype(str)
+        json_actual = df_para_guardar.to_json(orient='records')
+        
+        if json_actual != "[]" and json_actual != st.session_state.get("ultimo_json_guardado", "") and st.session_state.get("ultimo_json_guardado") != "":
+            query_upsert = text("""
+                INSERT INTO borradores_rotables (id_usuario, datos_json, ultima_actualizacion)
+                VALUES (:user, CAST(:datos AS jsonb), CURRENT_TIMESTAMP)
+                ON CONFLICT (id_usuario) 
+                DO UPDATE SET datos_json = EXCLUDED.datos_json, ultima_actualizacion = CURRENT_TIMESTAMP;
+            """)
+            try:
+                with conn.session as s:
+                    s.execute(query_upsert, {"user": usuario_actual, "datos": json_actual})
+                    s.commit()
+                st.session_state["ultimo_json_guardado"] = json_actual
+                st.toast("Guardado automático.") 
+            except Exception as e:
+                st.error(f"Error al guardar en Neon: {e}")
+                
+        elif st.session_state.get("ultimo_json_guardado") == "":
+            st.session_state["ultimo_json_guardado"] = json_actual
 
         st.markdown("---")
         
-        #Convertimos el índice visual de nuevo en la columna "No." para el sistema
         df_final_captura = edited_df.reset_index()
         
         output_captura = BytesIO()
@@ -282,27 +311,38 @@ if check_password():
             df_final_captura.to_excel(writer, index=False, sheet_name='Reporte_Manual')
         output_captura.seek(0)
 
-        col_btn1, col_btn2 = st.columns(2)
-        
-        with col_btn1:
-            st.download_button(
-                label="Descargar Reporte para Enviar (Final)",
-                data=output_captura,
-                file_name="Reporte_Manual_Capturado.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary" # Color resaltado
-            )
-            
-        with col_btn2:
-            st.download_button(
-                label="Guardar Borrador (Respaldo Temporal)",
-                data=output_captura, # Reutilizamos la misma exportación
-                file_name="Borrador_Captura_Rotables.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                # Sin type="primary" para que sea de color gris/secundario y no se confunda
-            )
+        st.download_button(
+            label="Descargar Reporte para Enviar",
+            data=output_captura,
+            file_name="Reporte_Manual_Capturado.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary"
+        )
 
-        # Guardamos en memoria la tabla con la columna "No." lista para la Pestaña 2
+        if st.button("Limpiar Sistema y Empezar Nuevo Reporte", type="secondary"):
+            conn = st.connection("postgresql", type="sql")
+            try:
+                with conn.session as s:
+                    query_limpieza = text("DELETE FROM borradores_rotables WHERE id_usuario = :user;")
+                    s.execute(query_limpieza, {"user": "estacion_principal"})
+                    s.commit()
+                
+                # 1. Borramos el DataFrame base de la memoria
+                if "df_input" in st.session_state:
+                    del st.session_state["df_input"]
+                    
+                # 2. NUEVO: Destruimos la memoria caché interna del st.data_editor
+                if "editor_captura_manual" in st.session_state:
+                    del st.session_state["editor_captura_manual"]
+                    
+                st.success("Sistema reiniciado. La tabla está en blanco para un nuevo reporte.")
+                st.rerun() # Fuerza la recarga visual inmediata
+                
+            except Exception as e:
+                st.error("No se pudo limpiar el borrador.")
+
+
+        st.info("Lo que registres se guardara de forma automatica, una vez terminado todo el proceso, limpiar con el boton indicado en la pestaña para que la informcaion no se mezcle con reportes nuevos.  ESTO BORRARA TODO EL PROGRESO, SOLO HACERLO AL TERMINAR EL REPORTE O AL INICIAR UNO NUEVO")
         st.session_state["datos_capturados"] = df_final_captura.copy()
 
     # --- PESTAÑA 2: CRUCE DE INFORMACIÓN ---
@@ -482,6 +522,28 @@ if check_password():
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             type="primary"
                         )
+                        if st.button("Limpiar Sistema y Empezar Nuevo Reporte", type="secondary"):
+                            conn = st.connection("postgresql", type="sql")
+                            try:
+                                with conn.session as s:
+                                    query_limpieza = text("DELETE FROM borradores_rotables WHERE id_usuario = :user;")
+                                    s.execute(query_limpieza, {"user": "estacion_principal"})
+                                    s.commit()
+                                
+                                # 1. Borramos el DataFrame base de la memoria
+                                if "df_input" in st.session_state:
+                                    del st.session_state["df_input"]
+                                    
+                                # 2. NUEVO: Destruimos la memoria caché interna del st.data_editor
+                                if "editor_captura_manual" in st.session_state:
+                                    del st.session_state["editor_captura_manual"]
+                                    
+                                st.success("Sistema reiniciado. La tabla está en blanco para un nuevo reporte.")
+                                st.rerun() # Fuerza la recarga visual inmediata
+                                
+                            except Exception as e:
+                                st.error("No se pudo limpiar el borrador.")
+
                 else:
                     st.error("No se encontraron las columnas necesarias para el cruce. Verifica los archivos subidos.")
             except Exception as e:
