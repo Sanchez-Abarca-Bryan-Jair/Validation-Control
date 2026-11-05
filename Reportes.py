@@ -39,7 +39,7 @@ def cargar_excel(file,tipo,nombre_hoja):
         df = pd.read_excel(file, sheet_name=nombre_hoja, header=fila_header, dtype=str)
         
         # 4. Limpieza profunda: Quitar columnas y filas fantasma
-        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        df = df.loc[:, ~df.columns.astype(str).str.contains('^Unnamed', na=False)]
         df.columns = df.columns.str.strip().str.upper()
         df = df.dropna(how='all')
 
