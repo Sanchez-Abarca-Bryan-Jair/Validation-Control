@@ -26,7 +26,7 @@ def cargar_excel(file,tipo,nombre_hoja):
         # 2. Escanear fila por fila buscando los encabezados reales
         fila_header = 0
         for idx, row in df_raw.iterrows():
-            fila_texto = str(row.values).upper()
+            fila_texto = str(row.values).upper() 
             if tipo == "plantilla" and ("NUMERO DE SERIE" in fila_texto or "DESCRIPCIÓN" in fila_texto):
                 fila_header = idx
                 break
@@ -43,22 +43,24 @@ def cargar_excel(file,tipo,nombre_hoja):
         df.columns = df.columns.str.strip().str.upper()
         df = df.dropna(how='all')
 
-        df = df.replace('_x0000_', '', regex=True)
-        df = df.replace('\n','',regex=True)
+        df = df.replace('_x0000_', '', regex=True) #elimina posibles carcateres ocultos
+        df = df.replace('\n','',regex=True)#elimina posible saltos de linea
         
-        return df
+        return df #retorna el dataframe  
 
+#Transformacion de los iconos para su carga correcta
 def load_icon(ruta_imagen):
     with open(ruta_imagen,"rb") as image_file:
         encoded_string = base64.b64encode(image_file.read()).decode()
     return f"data:image/png;base64,{encoded_string}"
 
+#iconos usados
 icono_reporte = load_icon("icons/reporte-de-negocios.png")
 icono_alerta = load_icon("icons/peligro.png")
 icono_cruce = load_icon("icons/cruce-de-caminos.png")
 icono_banner = load_icon("icons/verificar.png")
 
-st.set_page_config(page_title="Gestión de Rotables", page_icon="icons/avion.png", layout="wide")
+st.set_page_config(page_title="SISTEMA DE REPORTE A REPARACIONES", page_icon="icons/avion.png", layout="wide")
 # ==========================================
 # SISTEMA DE AUTENTICACIÓN GLOBAL
 # ==========================================
@@ -118,7 +120,7 @@ if check_password():
     <div class="hero-banner">
         <div class="hero-title">
             <img src='{icono_banner}' width='50' style='margin:10px;'>
-            SISTEMA DE REPORTES DE ROTABLES
+            SISTEMA DE REPORTE A REPARACIONES
         </div>
     </div>
     """
@@ -270,10 +272,10 @@ with tab1:
             key="editor_captura_manual",
             column_config={
                 "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
-                "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN"),
-                "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE"),
+                "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN", disabled=True, help="Se llenara en automatico al hacer el cruce"),
+                "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE",disabled=True, help="Se llenara en automatico al hacer el cruce"),
                 "NUMERO DE SERIE": st.column_config.TextColumn("INSTALADO: NO. DE SERIE"),
-                "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE"),
+                "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE", disabled=True, help="Se llenara en automatico al hacer el cruce"),
                 "NUMERO DE SERIE3": st.column_config.TextColumn("REMOVIDO: NO. DE SERIE")
             }
         )
@@ -362,7 +364,7 @@ with tab1:
                     if "datos_capturados" in st.session_state:
                         df_plantilla_raw = st.session_state["datos_capturados"].dropna(how='all')
                 else:
-                    file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx"])
+                    file_plantilla = st.file_uploader("1. Sube el Reporte Manual", type=["xlsx", "xls"])
                     if file_plantilla:
                         hojas_p = pd.ExcelFile(file_plantilla).sheet_names
                         hoja_plantilla = st.selectbox("Selecciona la pestaña a usar:", hojas_p) if len(hojas_p) > 1 else hojas_p[0]
@@ -370,7 +372,7 @@ with tab1:
                         df_plantilla_raw = cargar_excel(file_plantilla, "plantilla", hoja_plantilla)
 
             with col2:
-                file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx"])
+                file_descargado = st.file_uploader("2. Sube el Archivo del Sistema", type=["xlsx", "xls"])
                 if file_descargado:
                     hojas_d = pd.ExcelFile(file_descargado).sheet_names
                     hoja_descargado = st.selectbox("Selecciona la pestaña a usar:", hojas_d) if len(hojas_d) > 1 else hojas_d[0]
@@ -394,16 +396,23 @@ with tab1:
                 with espacio_edicion:
                     st.markdown("### CORRECCIÓN DE DATOS")
                     st.info("Si la alerta de arriba indica que no hubo coincidencia, busca el registro aquí, corrígelo y presiona 'Enter'.")
-                    df_plantilla = st.data_editor(df_plantilla_raw, use_container_width=True)
+                    df_plantilla = st.data_editor(df_plantilla_raw, use_container_width=True, key='editor_correcion_cruce')
                     st.markdown("---")
                 
                 if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
                     df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
                     df_descargado["SN"] = df_descargado["SN"].astype(str).str.strip()
 
+                    #filtrar el archivo del sistema
+                    cols_utiles = ['SN']
+                    if "PN_DESCRIPTION" in df_descargado.columns: cols_utiles.append("PN_DESCRIPTION")
+                    if "PN" in df_descargado.columns: cols_utiles.append("PN")
+                    
+                    df_descargado_limpio = df_descargado[cols_utiles]
+
                     df_cruce = pd.merge(
                         df_plantilla,
-                        df_descargado,
+                        df_descargado_limpio,
                         left_on="NUMERO DE SERIE3",
                         right_on="SN",
                         how="left"

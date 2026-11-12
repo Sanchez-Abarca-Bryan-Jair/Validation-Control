@@ -4,3 +4,4 @@ numpy
 psycopg
 psycopg-binary
 SQLAlchemy
+xlrd
