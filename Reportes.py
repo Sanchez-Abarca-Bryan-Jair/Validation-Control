@@ -265,6 +265,8 @@ with tab1:
                 st.session_state["df_input"] = pd.DataFrame(columns=columnas_plantilla)
 
         # 2. MOSTRAR TABLA
+
+        st.info("Las columnas DESCRIPCION,INSTALADO: NO. DE PARTE,REMOVIDO: NO. DE PARTE, se encuentran bloqueadas, esto no afecta al cruce automatico ")
         edited_df = st.data_editor(
             st.session_state["df_input"],
             num_rows="dynamic",
