@@ -275,7 +275,7 @@ with tab1:
             column_config={
                 "FECHA": st.column_config.DateColumn("FECHA", format="DD/MM/YYYY"),
                 "DESCRIPCIÓN": st.column_config.TextColumn("DESCRIPCIÓN", disabled=True, help="Se llenara en automatico al hacer el cruce"),
-                "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE",disabled=True, help="Se llenara en automatico al hacer el cruce"),
+                "NUMERO DE PARTE": st.column_config.TextColumn("INSTALADO: NO. DE PARTE"),
                 "NUMERO DE SERIE": st.column_config.TextColumn("INSTALADO: NO. DE SERIE"),
                 "NUMERO DE PARTE2": st.column_config.TextColumn("REMOVIDO: NO. DE PARTE", disabled=True, help="Se llenara en automatico al hacer el cruce"),
                 "NUMERO DE SERIE3": st.column_config.TextColumn("REMOVIDO: NO. DE SERIE")
@@ -402,16 +402,22 @@ with tab1:
                     st.markdown("---")
                 
                 if "NUMERO DE SERIE3" in df_plantilla.columns and "SN" in df_descargado.columns:
-                    df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].astype(str).str.strip()
-                    df_descargado["SN"] = df_descargado["SN"].astype(str).str.strip()
+                    # Normalizar a mayúsculas y sin espacios
+                    df_plantilla["NUMERO DE SERIE3"] = df_plantilla["NUMERO DE SERIE3"].fillna("").astype(str).str.strip().str.upper()
+                    df_descargado["SN"] = df_descargado["SN"].fillna("").astype(str).str.strip().str.upper()
 
-                    #filtrar el archivo del sistema
-                    cols_utiles = ['SN']
+                    # Filtrar columnas útiles y eliminar filas sin SN (evita cruce de "nan" con "nan")
+                    cols_utiles = ["SN"]
                     if "PN_DESCRIPTION" in df_descargado.columns: cols_utiles.append("PN_DESCRIPTION")
                     if "PN" in df_descargado.columns: cols_utiles.append("PN")
-                    
-                    df_descargado_limpio = df_descargado[cols_utiles]
 
+                    df_descargado_limpio = (
+                        df_descargado[cols_utiles]
+                        .loc[lambda d: (d["SN"] != "") & (d["SN"] != "NAN")]
+                        .drop_duplicates(subset=["SN"])
+                    )
+
+                    # 1. Cruce por REMOVIDO: NO. DE SERIE -> llena DESCRIPCIÓN y REMOVIDO: NO. DE PARTE
                     df_cruce = pd.merge(
                         df_plantilla,
                         df_descargado_limpio,
@@ -434,13 +440,26 @@ with tab1:
                             df_cruce["NUMERO DE PARTE2"]
                         )
 
+                    # 2. Cruce por INSTALADO: NO. DE SERIE -> llena INSTALADO: NO. DE PARTE
+                    if "PN" in df_descargado_limpio.columns and "NUMERO DE SERIE" in df_cruce.columns and "NUMERO DE PARTE" in df_cruce.columns:
+                        mapa_pn = df_descargado_limpio.set_index("SN")["PN"]
+                        pn_instalado = df_cruce["NUMERO DE SERIE"].fillna("").astype(str).str.strip().str.upper().map(mapa_pn)
+                        df_cruce["NUMERO DE PARTE"] = np.where(
+                            pn_instalado.notna() & (pn_instalado != "nan") & (pn_instalado.str.strip() != ""),
+                            pn_instalado,
+                            df_cruce["NUMERO DE PARTE"]
+                        )
+
                     columnas_originales = df_plantilla.columns.tolist()
                     df_final = df_cruce[columnas_originales]
                     
                     df_final = df_final.replace(['nan', 'NaN', '#REF!', 'None', 'NaT'], '')
                     df_final = df_final.fillna('')
 
-                    filas_sin_match = df_final[df_final["DESCRIPCIÓN"] == ""]
+                    filas_sin_match = df_final[
+                        (df_final["DESCRIPCIÓN"] == "") | 
+                        ((df_final["NUMERO DE SERIE"] != "") & (df_final["NUMERO DE PARTE"] == ""))
+                    ]
                     
                     with espacio_alertas:
                         if not filas_sin_match.empty:
